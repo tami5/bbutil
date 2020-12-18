@@ -1,0 +1,78 @@
+#!/usr/bin/env bb
+;; Imgup: A small utility to take a screenshot then upload it to imgur.
+ ; 1. select an area, full screen or current window.
+ ; 2. upload in imgurl.
+ ; 3. copy the url into clipboard.
+ ; uses: dmenu, maim, notify-send and xclip
+ ; TODO: fix fullscreen capturing before the dmenu prompt is closed
+ ; TODO: fix area selection including the mouse.
+ ; TODO: Add support for gif
+ ; TODO: Add support for macos
+(ns imgupp
+  (:require [tami.cli :as cli]
+            [tami.util :as util]
+            [tami.os :as os]
+            [clojure.string :as str]
+            [clojure.java.io :as io]
+            [cheshire.core :as json]
+            [babashka.curl :as curl]
+            [babashka.process :refer [process check $ pb start] :as p]))
+
+(defn- current-window
+  "Returns current window using xdotool."
+  [] (-> ($ xdotool getactivewindow) :out slurp str/trim-newline))
+
+(defn- get-screenshot-mode-cmd
+  "Get screenshot mode via a `menu` and `modes`
+  Returns the chosen mode's command."
+  [modes]
+  (let [items (->> modes keys (map name))
+        mode (-> (os/prompt-user "capture to imgur" items) keyword)]
+    (mode modes)))
+
+(defn- take-screenshot
+  "Execute `cmd` after appending `path` to it.
+  Return path."
+  ([cmd]
+   (take-screenshot cmd (format "/tmp/%s.png" (util/datetime))))
+  ([cmd & args]
+   (-> [(str/split cmd #" ") (first args)] flatten p/process :out slurp (str (first args)))))
+
+(defn- json->map
+  "Small wrapper around cheshire to parse json to map."
+  [str]
+  (json/parse-string str true))
+
+(defn- img->byte [path]
+  (let [byt (.encodeToString
+              (java.util.Base64/getEncoder)
+              (-> path io/file .toPath java.nio.file.Files/readAllBytes))]
+    (do (spit "/tmp/upload" byt :append false)
+        (io/file "/tmp/upload"))))
+
+(defn- upload->imgur
+  "Takes a `path` to an image, upload it and returns
+  image url"
+  [path]
+  (->> {:headers
+        {"Content-Type" "image/png"
+         "Authorization" "Client-ID ea6c0ef2987808e"
+         "Connection" "keep-alive"}
+        :body (img->byte path)}
+       (curl/post "https://api.imgur.com/3/image")
+       :body json->map :data :link))
+
+(defn -main [& args]
+  (let [opts {:current
+              (format "maim -i %s" (current-window))
+              :area "maim -s"
+              :fullscreen "maim"}]
+    (some-> opts
+            get-screenshot-mode-cmd
+            take-screenshot
+            upload->imgur
+            os/clip-string
+            (os/notify-user "IMGUP" "Uploaded image, copied url"))))
+
+(-main *command-line-args*)
+; vim: set filetype=clojure:

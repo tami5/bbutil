@@ -1,0 +1,22 @@
+#!/bin/bash
+ROOT="${PWD}"
+
+if [[ -f "$HOME/.config/zsh/init.zsh" ]]; then 
+  INIT="$HOME/.config/zsh/init.zsh"
+elif [[ -f "$HOME/.zsh/init.sh" ]]; then 
+  INIT="$HOME/.zsh/init.sh"
+elif [[ -f "$HOME/.zshrc" ]]; then 
+  INIT="$HOME/.zshrc"
+else 
+  echo "Please add babashka exports manually to your bashrc or zshrc."; exit
+fi
+
+
+cat <<EOT >> $INIT
+
+# TAMI BABASHKA UTIL
+BBUTIL="$ROOT"
+export PATH=\$PATH:\$BBUTIL/bin
+export BABASHKA_CLASSPATH="\$BABASHKA_CLASSPATH:\$(du "\$BBUTIL/" | cut -f2 | tr '\n' ':' | sed 's/:*$//')"
+export BABASHKA_CLASSPATH=\$BABASHKA_CLASSPATH:\$(clojure -Spath -Sdeps "\$(cat \$BBUTIL/deps.edn)")
+EOT
