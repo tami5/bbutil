@@ -1,2 +1,2 @@
 # bbutil
-Collection of babashka scripts and helper lib
+Collection of babashka scripts and helper lib.
