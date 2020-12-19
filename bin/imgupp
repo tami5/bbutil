@@ -8,6 +8,7 @@
  ; TODO: fix area selection including the mouse.
  ; TODO: Add support for gif
  ; TODO: Add support for macos
+
 (ns imgupp
   (:require [tami.cli :as cli]
             [tami.util :as util]
