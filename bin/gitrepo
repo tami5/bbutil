@@ -1,0 +1,27 @@
+#!/usr/bin/env bb
+; vim: set filetype=clojure:
+(ns gitrepo
+  (:require [tami.module.git :as git]
+            [tami.cli :as cli]))
+
+(defn -main [{:keys [options _arguments summary]}]
+  (cond
+    (:help options) (cli/print-summary "" summary)
+    (:circleci options) (git/open-circleci-url options)
+    :else (git/open-github-url options)))
+
+;; TODO: add an option for showing current todos/fixme in the repo
+;; TODO: add an option for creating a new repo on github
+(def cli-options
+  [["-r" "--repository REPO"
+    :default-fn git/find-current-user-repo
+    :default-desc "Current directory's repository"
+    :validate [#(re-find #"\S+/\S+" %) "Must contain a '/'"]]
+   ["-c" "--commit COMMIT" "Opens specified commit"]
+   ["-C" "--circleci" "Opens current branch on circleci"]
+   ["-t" "--tree" "Opens current branch on github"]
+   ["-f" "--file FILE" "Opens file in current branch on github"]
+   ["-h" "--help"]])
+
+(cli/run-command -main *command-line-args* cli-options)
+
